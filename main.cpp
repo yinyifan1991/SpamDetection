@@ -2,18 +2,20 @@
 #include "json.hpp"
 #include <string>
 #include <fstream>
-//#include <unordered_set.h>
 #include <unordered_set>
-//#include <bits/unordered_map.h>
+#include <unordered_map>
 
 using namespace std;
 using json = nlohmann::json;
 void readFileJson();
 
 vector<string> parse_bought(string line) ;
-unordered_set<string> parse_category(string line);
+pair<string, unordered_set<string>> parse_category(string line);
+string find_asin(string line);
 
 void parse_review(string line);
+
+unordered_map<string, unordered_set<string>> build_product_graph(unordered_map<string, unordered_set<string>>& map) ;
 
 int main() {
     //std::cout << "Hello, World!" << std::endl;
@@ -26,23 +28,33 @@ void readFileJson() {
     ifstream in("/home/yifan/CLionProjects/SpamDetection/test.json");
     string line;
     if(in.is_open()) {
-        json j;
+        //json j;
         vector<vector<string>> bought;
-        vector<unordered_set<string>> category;
-        while(getline(in, line)) {
-            j = line;
-            string s = j.dump();
+        unordered_map<string, unordered_set<string>> asin_category;
+        unordered_map<string, unordered_set<string>> product_network;
+        //int product_counter = 0;
+        while(getline(in, line)) {//read line and build user-product relations
+            //j = line;
+            //string s = j.dump();
+            string asin = find_asin(line);
             vector<string> sub_vector = parse_bought(line);
-            unordered_set<string> sub_set = parse_category(line);
-            for(unordered_set<string>::iterator it = sub_set.begin();it != sub_set.end();++it) cout << " " << *it;
-            cout << "\n";
-            cout << line << "\n";
+            pair<string, unordered_set<string>> pair = parse_category(line);
             bought.push_back(sub_vector);
+            asin_category.insert(pair);
+        }
+        //build product-product relations
+        product_network = build_product_graph(asin_category);
+        for(auto it = product_network.begin();it != product_network.end();++it) {
+            cout << it->first << ": ";
+            for(auto set_it = it->second.begin();set_it != it->second.end();++set_it) {
+                cout << *set_it << ",";
+            }
+            cout << endl;
         }
     }
 
 }
-
+//Extract products which are also_bought and also_viewed
 vector<string> parse_bought(string line) {
     vector<string> sub_vector;
     size_t pos = line.find("asin");
@@ -78,7 +90,7 @@ vector<string> parse_bought(string line) {
      */
     return sub_vector;
 }
-
+//Extract reviewerId
 void parse_review(string line) {
     size_t pos = line.find("reviewerID");
     int i = pos + 14;
@@ -91,11 +103,14 @@ void parse_review(string line) {
     string asin = line.substr(pos + 8, 10);
     cout << "asin:" << " " << asin << "\n";
 }
-
-unordered_set<string> parse_category(string line) {
+//Extract categories one product belongs to
+pair<string, unordered_set<string>> parse_category(string line) {
     unordered_set<string> category;
+    string asin = find_asin(line);
     size_t pos = line.find("categories");
-    if(pos == -1) return category;
+    if(pos == -1) {
+        return make_pair(asin, category);
+    }
     pos += 13;
     int brackets = 0;
     while(line[pos++] == '[') brackets++;
@@ -116,5 +131,42 @@ unordered_set<string> parse_category(string line) {
             }
         }
     }
-    return category;
+    return make_pair(asin, category);
+    //return category;
+}
+//Extrac asin ID
+string find_asin(string line) {
+    size_t pos = line.find("asin");
+    if(pos == -1) return "no asin";
+    return line.substr(pos + 8, 10);
+}
+/*Construct product-product graph
+ * compare the categories one product belongs to with the categories another product belongs to
+ * if the number of matches is more than a threshold
+ * identify they are connected
+ * time complexity is O(kn^2)
+ * */
+unordered_map<string, unordered_set<string>> build_product_graph(unordered_map<string, unordered_set<string>>& map) {
+    unordered_map<string, unordered_set<string>> graph;
+    for(unordered_map<string, unordered_set<string>>::iterator it = map.begin();it != map.end();++it) {
+        unordered_set<string> sub_set;
+        unordered_set<string> u_set = it->second;
+        string asin = it->first;
+        int count = 0;
+        for(unordered_map<string, unordered_set<string>>::iterator inner_it = map.begin();inner_it != map.end();++inner_it) {
+            string inner_asin = inner_it->first;
+            if(asin == inner_asin) continue;
+            unordered_set<string> v_set = inner_it->second;
+            for(unordered_set<string>::iterator set_it = u_set.begin();set_it != u_set.end();++set_it) {
+                cout << *set_it << ", ";
+                if(v_set.count(*set_it) > 0) count++;
+            }
+            cout << "\n";
+            if(count > 1) {
+                sub_set.insert(inner_asin);
+            }
+        }
+        graph.insert(make_pair(asin, sub_set));
+    }
+    return graph;
 }
