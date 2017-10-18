@@ -10,7 +10,7 @@ Decomposition::Decomposition(unordered_map<string, unordered_set<string>> graph,
     this->graph = graph;
     this->K = k;
 }
-
+//Reduce to (k-1)-core
 unordered_map<string, unordered_set<string>> Decomposition::k_core() {
     int k = this->K - 1;
     int counter = 0;
@@ -42,13 +42,14 @@ unordered_map<string, unordered_set<string>> Decomposition::k_core() {
     cout << "nodes to be erased: " << counter << endl;
     return graph;
 }
-
+//Reduce unsupported edges
 unordered_map<string, unordered_set<string>> Decomposition::k_truss() {
     int k = this->K - 2;
     int counter = 0;
     queue<string> bfsqueue;
     unordered_set<string> in_queue;
     unordered_map<string, int> c_num;
+    //First pass to find vertices pairs with number of common neighbors less than k
     for(auto it = graph.begin();it != graph.end();++it) {
         unordered_set<string> u_neighbors = it->second;
         for(auto u_it = u_neighbors.begin();u_it != u_neighbors.end();++u_it) {
@@ -160,7 +161,7 @@ unordered_map<string, unordered_set<string>> Decomposition::k_truss() {
     }
     return graph;
 }
-
+//Remove isolated vertices
 unordered_map<string, unordered_set<string>> Decomposition::remove_isolated_vertices() {
     vector<string> temp;
     for(auto it = graph.begin();it != graph.end();++it) {
