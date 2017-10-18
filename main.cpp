@@ -4,6 +4,7 @@
 #include <fstream>
 #include <unordered_set>
 #include <unordered_map>
+#include "Decomposition.h"
 
 using namespace std;
 using json = nlohmann::json;
@@ -13,9 +14,11 @@ vector<string> parse_bought(string line) ;
 pair<string, unordered_set<string>> parse_category(string line);
 string find_asin(string line);
 
-void parse_review(string line);
+pair<string, string> parse_review(string line);
 
 unordered_map<string, unordered_set<string>> build_product_graph(unordered_map<string, unordered_set<string>>& map) ;
+
+unordered_set<string> find_co_purchase(string line) ;
 
 int main() {
     //std::cout << "Hello, World!" << std::endl;
@@ -25,25 +28,44 @@ int main() {
 
 //Read Json from file
 void readFileJson() {
-    ifstream in("/home/yifan/CLionProjects/SpamDetection/test.json");
+    ifstream review_in("/home/yifan/CLionProjects/SpamDetection/reviews_Video_Games.json");
+    ifstream in("/home/yifan/CLionProjects/SpamDetection/meta_Video_Games.json");
     string line;
+    unordered_map<string, unordered_set<string>> review_product_graph;
+    if(review_in.is_open()) {
+        while(getline(review_in, line)) {
+            //cout << line << endl;
+            pair<string, string> temp = parse_review(line);
+            string reviewID = temp.first;
+            string co_product = temp.second;
+            if(review_product_graph.find(reviewID) == review_product_graph.end()) {
+                unordered_set<string> neighbors;
+                review_product_graph[reviewID] = neighbors;
+            }
+            review_product_graph[reviewID].insert(co_product);
+        }
+    }
     if(in.is_open()) {
         //json j;
         vector<vector<string>> bought;
-        unordered_map<string, unordered_set<string>> asin_category;
+        //unordered_map<string, unordered_set<string>> asin_category;
         unordered_map<string, unordered_set<string>> product_network;
         //int product_counter = 0;
         while(getline(in, line)) {//read line and build user-product relations
+            //cout << line << endl;
             //j = line;
             //string s = j.dump();
             string asin = find_asin(line);
             vector<string> sub_vector = parse_bought(line);
             pair<string, unordered_set<string>> pair = parse_category(line);
             bought.push_back(sub_vector);
-            asin_category.insert(pair);
+            //asin_category.insert(pair);
+
+            review_product_graph[asin] = find_co_purchase(line);
         }
         //build product-product relations
-        product_network = build_product_graph(asin_category);
+        //product_network = build_product_graph(asin_category);
+        /*
         for(auto it = product_network.begin();it != product_network.end();++it) {
             cout << it->first << ": ";
             for(auto set_it = it->second.begin();set_it != it->second.end();++set_it) {
@@ -51,7 +73,40 @@ void readFileJson() {
             }
             cout << endl;
         }
+         */
+        /*
+        for(auto it = review_product_graph.begin();it != review_product_graph.end();++it) {
+            cout << it->first << ": ";
+            for(auto set_it = it->second.begin();set_it != it->second.end();++set_it) {
+                cout << *set_it << ",";
+            }
+            cout << endl;
+        }
+         */
     }
+    Decomposition core(review_product_graph, 10);
+    cout << "original size: " << review_product_graph.size() << endl;
+    unordered_map<string, unordered_set<string>> k_core_map = core.k_core();
+    /*
+    for(auto it = k_core.begin();it != k_core.end();++it) {
+        cout << it->first << ": ";
+        for(auto set_it = it->second.begin();set_it != it->second.end();++set_it) {
+            cout << *set_it << ",";
+        }
+        cout << endl;
+    }
+     */
+    cout << "core size: " << k_core_map.size() << endl;
+    /*
+    for(auto it = k_core.begin();it != k_core.end();++it) {
+
+    }
+     */
+    unordered_map<string, unordered_set<string>> k_truss_map = core.k_truss();
+    cout << "truss size: " << k_truss_map.size() << endl;
+    unordered_map<string, unordered_set<string>> dense_subgraph = core.remove_isolated_vertices();
+    cout << "final size: " << dense_subgraph.size() << endl;
+    cout << "finished" << endl;
 
 }
 //Extract products which are also_bought and also_viewed
@@ -68,6 +123,7 @@ vector<string> parse_bought(string line) {
         }
         sub_vector.push_back(line.substr(pos, 10));
     }
+    /*
     if(line.find("also_viewed") != -1) {
         pos = line.find("also_viewed") + 16;
         //cout << "viewed: " << pos << " " << line.substr(pos, 10) << "\n";
@@ -77,6 +133,7 @@ vector<string> parse_bought(string line) {
         }
         sub_vector.push_back(line.substr(pos, 10));
     }
+     */
     /*
     if(line.find("buy_after_viewing") != -1) {
         pos = line.find("buy_after_viewing") + 22;
@@ -90,18 +147,35 @@ vector<string> parse_bought(string line) {
      */
     return sub_vector;
 }
+
+unordered_set<string> find_co_purchase(string line) {
+    unordered_set<string> sub_set;
+    size_t pos = line.find("asin");
+    if(line.find("also_bought") != -1) {
+        pos = line.find("also_bought") + 16;
+        //cout << "bought: " << pos << " " << line.substr(pos, 10) << "\n";
+        while(line[pos + 11] != ']') {
+            sub_set.insert(line.substr(pos, 10));
+            pos += 14;
+        }
+        sub_set.insert(line.substr(pos, 10));
+    }
+    return sub_set;
+};
 //Extract reviewerId
-void parse_review(string line) {
+pair<string, string> parse_review(string line) {
     size_t pos = line.find("reviewerID");
     int i = pos + 14;
     string reviewer;
     while(line[i] != '"') {
         reviewer += line[i++];
     }
-    cout << "ID: " << i << " " << reviewer << "\n";
+    reviewer = "r_" + reviewer;
+    //cout << "ID: " << i << " " << reviewer << "\n";
     pos = line.find("asin");
     string asin = line.substr(pos + 8, 10);
-    cout << "asin:" << " " << asin << "\n";
+    //cout << "asin:" << " " << asin << "\n";
+    return make_pair(reviewer, asin);
 }
 //Extract categories one product belongs to
 pair<string, unordered_set<string>> parse_category(string line) {
@@ -144,7 +218,7 @@ string find_asin(string line) {
  * compare the categories one product belongs to with the categories another product belongs to
  * if the number of matches is more than a threshold
  * identify they are connected
- * time complexity is O(kn^2)
+ * time complexity is O(n^3)
  * */
 unordered_map<string, unordered_set<string>> build_product_graph(unordered_map<string, unordered_set<string>>& map) {
     unordered_map<string, unordered_set<string>> graph;
@@ -158,10 +232,10 @@ unordered_map<string, unordered_set<string>> build_product_graph(unordered_map<s
             if(asin == inner_asin) continue;
             unordered_set<string> v_set = inner_it->second;
             for(unordered_set<string>::iterator set_it = u_set.begin();set_it != u_set.end();++set_it) {
-                cout << *set_it << ", ";
+                //cout << *set_it << ", ";
                 if(v_set.count(*set_it) > 0) count++;
             }
-            cout << "\n";
+            //cout << "\n";
             if(count > 1) {
                 sub_set.insert(inner_asin);
             }
