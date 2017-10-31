@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include "Decomposition.h"
+#include "build_graph.h"
 
 using namespace std;
 using json = nlohmann::json;
@@ -22,7 +23,11 @@ unordered_set<string> find_co_purchase(string line) ;
 
 int main() {
     //std::cout << "Hello, World!" << std::endl;
-    readFileJson();
+    string rating_file = "/home/yifan/CLionProjects/SpamDetection/reviews_Video_Games.json";
+    string meta_file = "/home/yifan/CLionProjects/SpamDetection/meta_Video_Games.json";
+    build_graph bg(rating_file, meta_file);
+    bg.build_graph_to_file();
+    //readFileJson();
     return 0;
 }
 
@@ -42,7 +47,12 @@ void readFileJson() {
                 unordered_set<string> neighbors;
                 review_product_graph[reviewID] = neighbors;
             }
+            if(review_product_graph.find(co_product) == review_product_graph.end()) {
+                unordered_set<string> neighbors;
+                review_product_graph[co_product] = neighbors;
+            }
             review_product_graph[reviewID].insert(co_product);
+            review_product_graph[co_product].insert(reviewID);
         }
     }
     if(in.is_open()) {
@@ -60,8 +70,15 @@ void readFileJson() {
             pair<string, unordered_set<string>> pair = parse_category(line);
             bought.push_back(sub_vector);
             //asin_category.insert(pair);
-
-            review_product_graph[asin] = find_co_purchase(line);
+            unordered_set<string> temp = find_co_purchase(line);
+            unordered_set<string> em;
+            if(review_product_graph.find(asin) == review_product_graph.end()) review_product_graph[asin] = em;
+            //review_product_graph[asin] = find_co_purchase(line);
+            for(auto it = temp.begin();it != temp.end();++it) {
+                review_product_graph[asin].insert(*it);
+                if(review_product_graph.find(*it) == review_product_graph.end()) review_product_graph[*it] = em;
+                review_product_graph[*it].insert(asin);
+            }
         }
         //build product-product relations
         //product_network = build_product_graph(asin_category);
@@ -84,28 +101,44 @@ void readFileJson() {
         }
          */
     }
-    Decomposition core(review_product_graph, 10);
-    cout << "original size: " << review_product_graph.size() << endl;
-    unordered_map<string, unordered_set<string>> k_core_map = core.k_core();
-    /*
-    for(auto it = k_core.begin();it != k_core.end();++it) {
-        cout << it->first << ": ";
-        for(auto set_it = it->second.begin();set_it != it->second.end();++set_it) {
-            cout << *set_it << ",";
-        }
-        cout << endl;
-    }
-     */
-    cout << "core size: " << k_core_map.size() << endl;
-    /*
-    for(auto it = k_core.begin();it != k_core.end();++it) {
 
+    cout << "original size: " << review_product_graph.size() << endl;
+    int original_review_number = 0;
+    for(auto it = review_product_graph.begin();it != review_product_graph.end();++it) {
+        if(it->first.find("r_") != -1) original_review_number++;
     }
-     */
-    unordered_map<string, unordered_set<string>> k_truss_map = core.k_truss();
-    cout << "truss size: " << k_truss_map.size() << endl;
-    unordered_map<string, unordered_set<string>> dense_subgraph = core.remove_isolated_vertices();
-    cout << "final size: " << dense_subgraph.size() << endl;
+    cout << "original reviewer number: " << original_review_number << endl;
+    int truss_num = 3;
+    int truss_vertex_num = 1;
+    unordered_map<string, unordered_set<string>> temp_graph = review_product_graph;
+    Decomposition core(temp_graph, truss_num);
+    unordered_map<string, unordered_set<string>> k_core_map = core.k_core();
+    temp_graph = k_core_map;
+    //cout << "core size: " << k_core_map.size() << endl;
+    while(truss_vertex_num > 0) {
+
+        Decomposition core(temp_graph, truss_num);
+        //unordered_map<string, unordered_set<string>> k_core_map = core.k_core();
+        //temp_graph = k_core_map;
+        //Decomposition core(temp_graph, truss_num);
+        cout << "truss number: " << truss_num << endl;
+        //cout << "core size: " << k_core_map.size() << endl;
+
+        unordered_map<string, unordered_set<string>> k_truss_map = core.k_truss();
+        unordered_map<string, unordered_set<string>> dense_subgraph = core.remove_isolated_vertices();
+
+        truss_vertex_num = dense_subgraph.size();
+        cout << "final size: " << truss_vertex_num << endl;
+        temp_graph = dense_subgraph;
+        /*
+        int review_num = 0;
+        for(auto it = dense_subgraph.begin();it != dense_subgraph.end();++it) {
+            if(it->first.find("r_") != -1) review_num++;
+        }
+        cout << "reviewer number contained in k-truss: " << review_num << endl;
+         */
+        truss_num++;
+    }
     cout << "finished" << endl;
 
 }

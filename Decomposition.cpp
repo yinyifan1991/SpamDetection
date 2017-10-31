@@ -39,7 +39,7 @@ unordered_map<string, unordered_set<string>> Decomposition::k_core() {
         graph.erase(u);
         bfsqueue.pop();
     }
-    cout << "nodes to be erased: " << counter << endl;
+    //cout << "nodes to be erased: " << counter << endl;
     return graph;
 }
 //Reduce unsupported edges
@@ -106,10 +106,10 @@ unordered_map<string, unordered_set<string>> Decomposition::k_truss() {
                     bfsqueue.push(e_prime_a1);
                     in_queue.insert(e_prime_a1);
                     if(graph.find(a) != graph.end()) graph[a].erase(*it);
-                    if(graph.find(b) != graph.end()) graph[b].erase(*it);
+                    //if(graph.find(b) != graph.end()) graph[b].erase(*it);
                     if(graph.find(*it) != graph.end()) {
                         graph[*it].erase(a);
-                        graph[*it].erase(b);
+                        //graph[*it].erase(b);
                     }
                 }
 
@@ -121,10 +121,10 @@ unordered_map<string, unordered_set<string>> Decomposition::k_truss() {
                     bfsqueue.push(e_prime_a2);
                     in_queue.insert(e_prime_a2);
                     if(graph.find(a) != graph.end()) graph[a].erase(*it);
-                    if(graph.find(b) != graph.end()) graph[b].erase(*it);
+                    //if(graph.find(b) != graph.end()) graph[b].erase(*it);
                     if(graph.find(*it) != graph.end()) {
                         graph[*it].erase(a);
-                        graph[*it].erase(b);
+                        //graph[*it].erase(b);
                     }
                 }
             }
@@ -134,10 +134,10 @@ unordered_map<string, unordered_set<string>> Decomposition::k_truss() {
                     //cout << e_prime_b1 << " " << c_num[e_prime_b1] << endl;
                     bfsqueue.push(e_prime_b1);
                     in_queue.insert(e_prime_b1);
-                    if(graph.find(a) != graph.end()) graph[a].erase(*it);
+                    //if(graph.find(a) != graph.end()) graph[a].erase(*it);
                     if(graph.find(b) != graph.end()) graph[b].erase(*it);
                     if(graph.find(*it) != graph.end()) {
-                        graph[*it].erase(a);
+                        //graph[*it].erase(a);
                         graph[*it].erase(b);
                     }
                 }
@@ -148,10 +148,10 @@ unordered_map<string, unordered_set<string>> Decomposition::k_truss() {
                     //cout << e_prime_b2 << " " << c_num[e_prime_b2] << endl;
                     bfsqueue.push(e_prime_b2);
                     in_queue.insert(e_prime_b2);
-                    if(graph.find(a) != graph.end()) graph[a].erase(*it);
+                    //if(graph.find(a) != graph.end()) graph[a].erase(*it);
                     if(graph.find(b) != graph.end()) graph[b].erase(*it);
                     if(graph.find(*it) != graph.end()) {
-                        graph[*it].erase(a);
+                        //graph[*it].erase(a);
                         graph[*it].erase(b);
                     }
                 }
@@ -166,7 +166,7 @@ unordered_map<string, unordered_set<string>> Decomposition::remove_isolated_vert
     vector<string> temp;
     for(auto it = graph.begin();it != graph.end();++it) {
         if(it->second.empty()) {
-            cout << "empty " << it->first << endl;
+            //cout << "empty " << it->first << endl;
             temp.push_back(it->first);
         }
         //cout << it->second.size() << endl;
