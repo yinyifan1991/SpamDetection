@@ -6,35 +6,69 @@
 #include <unordered_map>
 #include "Decomposition.h"
 #include "build_graph.h"
+#include "main.h"
+#include "evaluation.h"
 
 using namespace std;
 using json = nlohmann::json;
-void readFileJson();
+
+string folder;
+char *folder_name;
 
 vector<string> parse_bought(string line) ;
 pair<string, unordered_set<string>> parse_category(string line);
 string find_asin(string line);
 
+void readFileJson();
 pair<string, string> parse_review(string line);
-
 unordered_map<string, unordered_set<string>> build_product_graph(unordered_map<string, unordered_set<string>>& map) ;
-
 unordered_set<string> find_co_purchase(string line) ;
 
-int main() {
+int main(int argc, char *argv[]) {
     //std::cout << "Hello, World!" << std::endl;
-    string rating_file = "/home/yifan/CLionProjects/SpamDetection/reviews_Video_Games.json";
-    string meta_file = "/home/yifan/CLionProjects/SpamDetection/meta_Video_Games.json";
-    build_graph bg(rating_file, meta_file);
-    bg.build_graph_to_file();
-    //readFileJson();
+    string command ("eval");
+    folder = "/home/yifan/CLionProjects/SpamDetection/reviews_whole/";
+    if(command == "build_graph") {
+        string rating_file = "/home/yifan/CLionProjects/SpamDetection/reviews_Clothing_Shoes_and_Jewelry.json";
+        string meta_file = "/home/yifan/CLionProjects/SpamDetection/meta_Clothing_Shoes_and_Jewelry.json";
+        build_graph bg(rating_file, meta_file);
+        bg.build_graph_to_file();
+        //readFileJson();
+    }
+    else if(command == "build_whole") {
+        folder = "/home/yifan/CLionProjects/SpamDetection/reviews_whole/";
+        vector<string> rating_files;
+        vector<string> meta_files;
+        rating_files.push_back("/home/yifan/CLionProjects/SpamDetection/reviews_Automotive.json");
+        rating_files.push_back("/home/yifan/CLionProjects/SpamDetection/reviews_Grocery_and_Gourmet_Food.json");
+        rating_files.push_back("/home/yifan/CLionProjects/SpamDetection/reviews_Video_Games.json");
+        rating_files.push_back("/home/yifan/CLionProjects/SpamDetection/reviews_Beauty.json");
+        rating_files.push_back("/home/yifan/CLionProjects/SpamDetection/reviews_Cell_Phones_and_Accessories.json");
+        rating_files.push_back("/home/yifan/CLionProjects/SpamDetection/reviews_Clothing_Shoes_and_Jewelry.json");
+        rating_files.push_back("/home/yifan/CLionProjects/SpamDetection/reviews_Pet_Supplies.json");
+        meta_files.push_back("/home/yifan/CLionProjects/SpamDetection/meta_Automotive.json");
+        meta_files.push_back("/home/yifan/CLionProjects/SpamDetection/meta_Grocery_and_Gourmet_Food.json");
+        meta_files.push_back("/home/yifan/CLionProjects/SpamDetection/meta_Video_Games.json");
+        meta_files.push_back("/home/yifan/CLionProjects/SpamDetection/meta_Beauty.json");
+        meta_files.push_back("/home/yifan/CLionProjects/SpamDetection/meta_Cell_Phones_and_Accessories.json");
+        meta_files.push_back("/home/yifan/CLionProjects/SpamDetection/meta_Clothing_Shoes_and_Jewelry.json");
+        meta_files.push_back("/home/yifan/CLionProjects/SpamDetection/meta_Pet_Supplies.json");
+        build_graph bg(rating_files, meta_files);
+        bg.build_whole_graph_to_file();
+    }
+    else if(command == "eval") {
+        evaluation ev;
+        ev.read_files();
+        ev.sort_by_score();
+        ev.write_score_rank(folder + "score_rank");
+    }
     return 0;
 }
 
 //Read Json from file
 void readFileJson() {
-    ifstream review_in("/home/yifan/CLionProjects/SpamDetection/reviews_Video_Games.json");
-    ifstream in("/home/yifan/CLionProjects/SpamDetection/meta_Video_Games.json");
+    ifstream review_in("/home/yifan/CLionProjects/SpamDetection/reviews_Baby.json");
+    ifstream in("/home/yifan/CLionProjects/SpamDetection/meta_Baby.json");
     string line;
     unordered_map<string, unordered_set<string>> review_product_graph;
     if(review_in.is_open()) {

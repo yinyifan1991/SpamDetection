@@ -5,26 +5,48 @@
 #include <fstream>
 #include <iostream>
 #include "build_graph.h"
+#include "main.h"
 
 build_graph::build_graph(string rating_file, string meta_file) {
     this->rating_file_name = rating_file;
     this->meta_file_name = meta_file;
     this->total_num = 0;
     this->edge = 0;
+    this->rating_edge = 0;
+}
+
+build_graph::build_graph(vector<string> rating_files, vector<string> meta_files) {
+    this->rating_files = rating_files;
+    this->meta_files = meta_files;
+    this->total_num = 0;
+    this->edge = 0;
+    this->rating_edge = 0;
 }
 
 vector<unordered_set<int>> build_graph::build_graph_to_file() {
     build_review_graph();
     build_meta_graph();
-    /*
-    for(int i = 0;i < graph.size();i++) {
-        if(i >= 100) break;
-        for(int j = 0;j < graph[i].size();j++) {
-            cout << i << " " << graph[i][j] << endl;
-        }
+    ofstream id_map (folder + "id_to_int.txt");
+    id_map << total_num << " " << reviewer_num << endl;
+    for(auto it: id_to_int) {
+        id_map << it.first << ' ' << it.second << endl;
     }
-    */
-    string write_file_name = "/home/yifan/CLionProjects/SpamDetection/reviews_video_games.mtx.txt";
+    string write_file_name = folder + "reviews_Clothing_Shoes_and_Jewelry.mtx.txt";
+    write_graph_file(write_file_name);
+}
+
+vector<unordered_set<int>> build_graph::build_whole_graph_to_file() {
+    build_review_whole();
+    for(int i = 0;i < meta_files.size();i++) {
+        meta_file_name = meta_files[i];
+        build_meta_graph();
+    }
+    ofstream id_map (folder + "id_to_int.txt");
+    id_map << total_num << " " << reviewer_num << endl;
+    for(auto it: id_to_int) {
+        id_map << it.first << ' ' << it.second << endl;
+    }
+    string write_file_name = folder + "reviews_whole.mtx.txt";
     write_graph_file(write_file_name);
 }
 
@@ -39,10 +61,6 @@ void build_graph::build_review_graph() {
             string asin = temp.second;
             if(id_to_int.find(review_id) == id_to_int.end()) {
                 id_to_int[review_id] = total_num++;
-                /*
-                unordered_set<int> em;
-                graph.push_back(em);
-                 */
                 vector<int> em;
                 graph.push_back(em);
             }
@@ -53,16 +71,12 @@ void build_graph::build_review_graph() {
             map[review_id].insert(asin);
         }
     }
-    reviewer_num = total_num - 1;
+    reviewer_num = total_num;
     for(auto it = map.begin();it != map.end();++it) {
         int index = id_to_int[it->first];
         for(auto set_it = it->second.begin();set_it != it->second.end();++set_it) {
             if(id_to_int.find(*set_it) == id_to_int.end()) {
                 id_to_int[*set_it] = total_num++;
-                /*
-                unordered_set<int> em;
-                graph.push_back(em);
-                 */
                 vector<int> em;
                 graph.push_back(em);
             }
@@ -72,6 +86,7 @@ void build_graph::build_review_graph() {
             if(graph[index].empty()) {
                 graph[index].push_back(set_index);
                 edge++;
+                rating_edge++;
                 flag = true;
             }
             else {
@@ -79,6 +94,7 @@ void build_graph::build_review_graph() {
                     if(*v > set_index) {
                         graph[index].insert(v, set_index);
                         edge++;
+                        rating_edge++;
                         flag = true;
                         break;
                     }
@@ -91,9 +107,74 @@ void build_graph::build_review_graph() {
             if(!flag && !same) {
                 graph[index].push_back(set_index);
                 edge++;
+                rating_edge++;
             }
-            //graph[index].insert(set_index);
-            //edge++;
+        }
+    }
+}
+
+void build_graph::build_review_whole() {
+    unordered_map<string, unordered_set<string>> map;
+    for(int i = 0;i < rating_files.size();i++) {
+        rating_file_name = rating_files[i];
+        ifstream review_in(rating_file_name);
+        string line;
+        if(review_in.is_open()) {
+            while(getline(review_in, line)) {
+                pair<string, string> temp = parse_review(line);
+                string review_id = temp.first;
+                string asin = temp.second;
+                if(id_to_int.find(review_id) == id_to_int.end()) {
+                    id_to_int[review_id] = total_num++;
+                    vector<int> em;
+                    graph.push_back(em);
+                }
+                if(map.find(review_id) == map.end()) {
+                    unordered_set<string> temp_set;
+                    map[review_id] = temp_set;
+                }
+                map[review_id].insert(asin);
+            }
+        }
+    }
+    reviewer_num = total_num;
+    for(auto it = map.begin();it != map.end();++it) {
+        int index = id_to_int[it->first];
+        for(auto set_it = it->second.begin();set_it != it->second.end();++set_it) {
+            if(id_to_int.find(*set_it) == id_to_int.end()) {
+                id_to_int[*set_it] = total_num++;
+                vector<int> em;
+                graph.push_back(em);
+            }
+            int set_index = id_to_int[*set_it];
+            bool flag = false, same = false;
+
+            if(graph[index].empty()) {
+                graph[index].push_back(set_index);
+                edge++;
+                rating_edge++;
+                flag = true;
+            }
+            else {
+                for(auto v = graph[index].begin();v != graph[index].end();++v) {
+                    if(*v > set_index) {
+                        graph[index].insert(v, set_index);
+                        edge++;
+                        rating_edge++;
+                        flag = true;
+                        break;
+                    }
+                    if(*v == set_index) {
+                        same = true;
+                        break;
+                    }
+                }
+            }
+            if(!flag && !same) {
+                graph[index].push_back(set_index);
+                edge++;
+                rating_edge++;
+            }
         }
     }
 }
@@ -107,34 +188,23 @@ void build_graph::build_meta_graph() {
             unordered_set<string> temp = find_co_purchase(line);
             if(id_to_int.find(asin) == id_to_int.end()) {
                 id_to_int[asin] = total_num++;
-                //unordered_set<int> em;
-                //graph.push_back(em);
                 vector<int> em;
                 graph.push_back(em);
-                //cout << "first: " << asin << endl;
             }
-            //cout << "temp: " << endl;
             int index = id_to_int[asin];
             for(auto it = temp.begin();it != temp.end();++it) {
                 if(id_to_int.find(*it) == id_to_int.end()) {
                     id_to_int[*it] = total_num++;
-                    //unordered_set<int> tm;
-                    //graph.push_back(tm);
-                    //cout << "second: " << *it << endl;
                     vector<int> em;
                     graph.push_back(em);
                 }
                 int set_index = id_to_int[*it];
                 int x, y;
                 if(index < set_index) {
-                    //graph[index].insert(set_index);
-                    //edge++;
                     x = index;
                     y = set_index;
                 }
                 else if(index > set_index) {
-                    //graph[set_index].insert(index);
-                    //edge++;
                     x = set_index;
                     y = index;
                 }
@@ -143,22 +213,18 @@ void build_graph::build_meta_graph() {
                 bool flag = false, same = false;
                 if(graph[x].empty()) {
                     graph[x].push_back(y);
-                    //cout << x << " " << y << endl;
                     edge++;
                     flag = true;
-                    //cout << "third: " << x << " " << y << endl;
                 }
                 else {
                     for(auto v = graph[x].begin();v != graph[x].end();++v) {
                         if(*v > y) {
-                            //cout << "forth: " << *v << " " << y << endl;
                             graph[x].insert(v, y);
                             edge++;
                             flag = true;
                             break;
                         }
                         if(*v == y) {
-                            //cout << "same: " << *v << " " << y << endl;
                             same = true;
                             break;
                         }
@@ -166,7 +232,6 @@ void build_graph::build_meta_graph() {
                 }
                 if(!flag && !same) {
                     graph[x].push_back(y);
-                    //cout << "fifth: " << x << " " << y << endl;
                     edge++;
                 }
             }
@@ -216,13 +281,17 @@ void build_graph::write_graph_file(string file_name) {
         return;
     }
 
-    myfile << graph.size() << ' ' << edge << endl;
-    for(int i = 1;i <= graph.size();i++) {
-        for(auto it = graph[i-1].begin();it != graph[i-1].end();++it) {
-            myfile << i << ' ' << *it + 1 << endl;
-            if(i == *it + 1) cout << i << ' ' << *it + 1 << endl;
+    myfile << graph.size() << ' ' << edge << ' ' << reviewer_num << ' ' << rating_edge << endl;
+    for(int i = 0;i < graph.size();i++) {
+        for(auto it = graph[i].begin();it != graph[i].end();++it) {
+            myfile << i << ' ' << *it << endl;
+            if(i == *it) cout << i << ' ' << *it << endl;
         }
     }
     myfile.close();
+}
+
+vector<vector<int>> build_graph::get_graph() {
+    return graph;
 }
 
